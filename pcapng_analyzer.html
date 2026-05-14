@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCAPNG Analyzer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:       #f0f2f5;
+    --surface:  #ffffff;
+    --surface2: #f7f8fa;
+    --border:   #dde1e8;
+    --border2:  #c8cdd8;
+
+    --accent:   #2563eb;
+    --accent-lt:#eff4ff;
+    --accent2:  #0891b2;
+    --accent3:  #d97706;
+    --success:  #059669;
+    --warn:     #d97706;
+    --danger:   #dc2626;
+    --purple:   #7c3aed;
+
+    --text:     #111827;
+    --text2:    #374151;
+    --muted:    #6b7280;
+    --muted2:   #9ca3af;
+
+    --header-bg: #1e293b;
+    --header-text: #f1f5f9;
+
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+    --shadow:    0 4px 6px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--header-bg);
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 3px solid var(--accent);
+  }
+
+  header .logo {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--header-text);
+    letter-spacing: -0.01em;
+  }
+
+  header p {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 0.1rem;
+  }
+
+  /* ── DROP ZONE ── */
+  .drop-zone {
+    position: relative;
+    margin: 1.5rem 2rem;
+    border: 2px dashed var(--border2);
+    border-radius: 10px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    background: var(--surface);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-lt);
+    box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+  }
+
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .drop-icon { font-size: 2rem; margin-bottom: 0.6rem; }
+
+  .drop-zone h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.3rem;
+  }
+
+  .drop-zone p { color: var(--muted); font-size: 0.82rem; }
+
+  /* ── PROGRESS ── */
+  #progress-bar-wrap {
+    display: none;
+    margin: 0 2rem 1rem;
+  }
+
+  #progress-bar-wrap p {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .pbar { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .pbar-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    transition: width 0.2s ease;
+    border-radius: 99px;
+  }
+
+  /* ── OUTPUT LAYOUT ── */
+  #output { padding: 0 2rem 3rem; }
+
+  /* ── SECTIONS ── */
+  .section {
+    margin-top: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.75rem 1.1rem;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+
+  .section-header:hover { background: #eef2f9; }
+
+  .section-header .icon { font-size: 0.95rem; flex-shrink: 0; }
+
+  .section-header h3 {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.01em;
+    flex: 1;
+    text-transform: uppercase;
+  }
+
+  .section-header .badge {
+    background: var(--accent-lt);
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.55rem;
+    border-radius: 99px;
+    border: 1px solid #bfdbfe;
+  }
+
+  .section-header .chevron {
+    color: var(--muted2);
+    transition: transform 0.22s;
+    font-size: 0.65rem;
+  }
+
+  .section.collapsed .chevron { transform: rotate(-90deg); }
+  .section.collapsed .section-body { display: none; }
+
+  .section-body { padding: 1rem 1.1rem; }
+
+  /* ── STAT GRID ── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.7rem;
+  }
+
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+  }
+
+  .stat-card .label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+
+  .stat-card .value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    word-break: break-all;
+    line-height: 1.3;
+  }
+
+  .stat-card .value.small { font-size: 0.82rem; }
+  .stat-card .value.warn { color: var(--warn); }
+  .stat-card .value.danger { color: var(--danger); }
+
+  /* ── TABLES ── */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+
+  .data-table th {
+    text-align: left;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border);
+    background: var(--surface2);
+    white-space: nowrap;
+  }
+
+  .data-table td {
+    padding: 0.45rem 0.85rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+    word-break: break-all;
+  }
+
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tbody tr:hover td { background: #f5f8ff; }
+  .data-table tbody tr:nth-child(even) td { background: #fafbfc; }
+  .data-table tbody tr:nth-child(even):hover td { background: #f5f8ff; }
+
+  /* ── PROTO TAGS ── */
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tag-tcp  { background: #dbeafe; color: #1d4ed8; }
+  .tag-udp  { background: #d1fae5; color: #065f46; }
+  .tag-icmp { background: #ffedd5; color: #9a3412; }
+  .tag-arp  { background: #fef9c3; color: #854d0e; }
+  .tag-dns  { background: #ede9fe; color: #5b21b6; }
+  .tag-http { background: #fee2e2; color: #991b1b; }
+  .tag-tls  { background: #cffafe; color: #155e75; }
+  .tag-other{ background: #f3f4f6; color: #374151; }
+
+  /* ── SEARCH ── */
+  .search-bar { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+
+  .search-bar input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .search-bar input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+  }
+
+  .search-bar input::placeholder { color: var(--muted2); }
+
+  /* ── PACKET LIST ── */
+  .packet-row {
+    display: grid;
+    grid-template-columns: 50px 95px 130px 130px 60px 55px 90px 1fr;
+    gap: 0.4rem;
+    padding: 0.32rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    align-items: center;
+    transition: background 0.1s;
+    line-height: 1.4;
+  }
+
+  .packet-row:hover { background: #f0f6ff; }
+
+  .packet-row.header-row {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 2px solid var(--border);
+    background: var(--surface2);
+    position: sticky; top: 0;
+  }
+
+  .packets-container { max-height: 520px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .packets-container::-webkit-scrollbar { width: 6px; }
+  .packets-container::-webkit-scrollbar-track { background: var(--surface2); }
+  .packets-container::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* ── ALERTS ── */
+  .alert-item {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    font-size: 0.82rem;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+
+  .alert-item.warn { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
+  .alert-item.info { background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; }
+
+  /* ── DNS ── */
+  .dns-name { color: var(--success); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+  .dns-type { color: var(--muted); font-size: 0.72rem; margin-left: 0.3rem; }
+
+  /* ── HEX DUMP ── */
+  .hex-dump {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    line-height: 1.7;
+    color: var(--text2);
+    white-space: pre;
+    overflow-x: auto;
+    padding: 0.75rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .hex-dump span.hex { color: var(--accent); }
+  .hex-dump span.ascii { color: var(--success); }
+
+  /* ── ERROR ── */
+  .error-box {
+    border: 1px solid #fca5a5;
+    background: #fef2f2;
+    color: var(--danger);
+    padding: 1rem 1.2rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    font-size: 0.84rem;
+  }
+
+  /* ── SCROLLBARS ── */
+  ::-webkit-scrollbar { width: 7px; height: 7px; }
+  ::-webkit-scrollbar-track { background: var(--surface2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+  /* ── UTILITY ── */
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .ip   { color: var(--accent2); font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+  .port { color: var(--accent3); font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+
+  /* mini bar */
+  .minibar-bg { height: 5px; background: var(--border); border-radius: 99px; min-width: 80px; }
+  .minibar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🔬</div>
+  <div>
+    <h1>PCAPNG Analyzer</h1>
+    <p>Network packet forensics &amp; enumeration — parsed entirely in-browser</p>
+  </div>
+</header>
+
+<div class="drop-zone" id="dropZone">
+  <input type="file" id="fileInput" accept=".pcapng,.pcap,.cap">
+  <div class="drop-icon">📂</div>
+  <h2>Drop a PCAPNG or PCAP file here</h2>
+  <p>Or click to browse — file is parsed entirely in-browser, nothing is uploaded</p>
+</div>
+
+<div id="progress-bar-wrap">
+  <p id="progress-label">PARSING...</p>
+  <div class="pbar"><div class="pbar-fill" id="pbar"></div></div>
+</div>
+
+<div id="output"></div>
+
+<script>
+// ─── UTILITY ─────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString();
+const hex2 = n => n.toString(16).padStart(2,'0').toUpperCase();
+const ip4 = (v, o) => `${v.getUint8(o)}.${v.getUint8(o+1)}.${v.getUint8(o+2)}.${v.getUint8(o+3)}`;
+const mac = (v,o) => [0,1,2,3,4,5].map(i=>hex2(v.getUint8(o+i))).join(':');
+
+function readStr(v, offset, len) {
+  let s = '';
+  for (let i = 0; i < len; i++) { const c = v.getUint8(offset+i); if (c===0) break; s += String.fromCharCode(c); }
+  return s;
+}
+
+function setProgress(pct, label) {
+  $('pbar').style.width = pct + '%';
+  $('progress-label').textContent = label;
+}
+
+// ─── DROP ZONE ───────────────────────────────────────────────────────────────
+const dz = $('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); });
+$('fileInput').addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
+function processFile(file) {
+  $('output').innerHTML = '';
+  $('progress-bar-wrap').style.display = 'block';
+  setProgress(5, 'READING FILE...');
+  const reader = new FileReader();
+  reader.onload = e => { try { analyze(e.target.result, file.name, file.size); } catch(err) { showError(err); } };
+  reader.readAsArrayBuffer(file);
+}
+
+function showError(err) {
+  $('progress-bar-wrap').style.display = 'none';
+  $('output').innerHTML = `<div class="error-box">⚠ PARSE ERROR: ${err.message}<br><small>${err.stack||''}</small></div>`;
+}
+
+// ─── PCAP CLASSIC PARSER ─────────────────────────────────────────────────────
+function parsePcapClassic(buf) {
+  const v = new DataView(buf);
+  const magic = v.getUint32(0, true);
+  const le = (magic === 0xa1b2c3d4 || magic === 0xa1b23c4d);
+  const nano = (magic === 0xa1b23c4d || magic === 0xa1b2cd34);
+  const linkType = v.getUint32(20, le);
+  const packets = [];
+  let offset = 24;
+  while (offset + 16 <= buf.byteLength) {
+    const tsSec = v.getUint32(offset, le);
+    const tsUsec = v.getUint32(offset+4, le);
+    const capLen = v.getUint32(offset+8, le);
+    const origLen = v.getUint32(offset+12, le);
+    const dataOff = offset + 16;
+    if (dataOff + capLen > buf.byteLength) break;
+    const ts = tsSec + (nano ? tsUsec/1e9 : tsUsec/1e6);
+    packets.push({ ts, capLen, origLen, dataOff, linkType });
+    offset = dataOff + capLen;
+  }
+  return { fileType: 'PCAP (classic)', linkType, packets };
+}
+
+// ─── PCAPNG PARSER ───────────────────────────────────────────────────────────
+function parsePcapng(buf) {
+  const v = new DataView(buf);
+  // detect endianness from SHB byte order magic
+  const bodOff = 8; // start of SHB body
+  const bom = v.getUint32(bodOff, true);
+  const le = (bom === 0x1A2B3C4D);
+  const packets = [];
+  let ifaceMap = {}; // ifaceId -> {linkType, tsResol}
+  let offset = 0;
+
+  while (offset + 8 <= buf.byteLength) {
+    const blockType = v.getUint32(offset, le);
+    const blockLen  = v.getUint32(offset+4, le);
+    if (blockLen < 12 || offset + blockLen > buf.byteLength) break;
+
+    // Interface Description Block
+    if (blockType === 0x00000001) {
+      const linkType = v.getUint16(offset+8, le);
+      let tsResol = 6; // default microseconds
+      // parse options for if_tsresol
+      let optOff = offset + 16;
+      const blockEnd = offset + blockLen - 4;
+      while (optOff + 4 <= blockEnd) {
+        const oc = v.getUint16(optOff, le);
+        const ol = v.getUint16(optOff+2, le);
+        if (oc === 0) break;
+        if (oc === 9 && ol >= 1) {
+          const r = v.getUint8(optOff+4);
+          tsResol = (r & 0x80) ? Math.log2(1/(r & 0x7F)) : (r & 0x7F);
+        }
+        optOff += 4 + ol + (ol%4 ? 4-(ol%4) : 0);
+      }
+      const id = Object.keys(ifaceMap).length;
+      ifaceMap[id] = { linkType, tsResol };
+    }
+
+    // Enhanced Packet Block
+    else if (blockType === 0x00000006) {
+      const ifaceId  = v.getUint32(offset+8, le);
+      const tsHi     = v.getUint32(offset+12, le);
+      const tsLo     = v.getUint32(offset+16, le);
+      const capLen   = v.getUint32(offset+20, le);
+      const origLen  = v.getUint32(offset+24, le);
+      const dataOff  = offset + 28;
+      const iface    = ifaceMap[ifaceId] || { linkType:1, tsResol:6 };
+      const tsRaw    = tsHi * 4294967296 + tsLo;
+      const ts       = tsRaw / Math.pow(10, iface.tsResol);
+      packets.push({ ts, capLen, origLen, dataOff, linkType: iface.linkType, ifaceId });
+    }
+
+    // Simple Packet Block (legacy)
+    else if (blockType === 0x00000003) {
+      const origLen = v.getUint32(offset+8, le);
+      const capLen  = Math.min(origLen, blockLen - 16);
+      const dataOff = offset + 12;
+      packets.push({ ts: 0, capLen, origLen, dataOff, linkType: (ifaceMap[0]||{linkType:1}).linkType, ifaceId:0 });
+    }
+
+    offset += blockLen;
+  }
+  return { fileType: 'PCAPNG', ifaceMap, packets };
+}
+
+// ─── ETHERNET / L3 DISSECTOR ─────────────────────────────────────────────────
+function dissectPacket(buf, dataOff, capLen, linkType) {
+  const v = new DataView(buf, dataOff, capLen);
+  const result = { layers: [], srcIp: null, dstIp: null, srcMac: null, dstMac: null,
+    srcPort: null, dstPort: null, proto: null, etherType: null,
+    ipProto: null, flags: {}, payloadOff: 0, payload: null,
+    tcpFlags: null, seqNum: null, ackNum: null, dnsInfo: null,
+    httpInfo: null, tlsInfo: null, arpInfo: null, icmpInfo: null };
+
+  let off = 0;
+  try {
+    // Ethernet
+    if (linkType === 1 || linkType === 228) {
+      if (linkType === 1) {
+        if (capLen < 14) return result;
+        result.srcMac = mac(v, 6);
+        result.dstMac = mac(v, 0);
+        result.etherType = v.getUint16(12);
+        off = 14;
+        // 802.1Q VLAN
+        if (result.etherType === 0x8100) {
+          result.vlanId = v.getUint16(off) & 0x0FFF;
+          result.etherType = v.getUint16(off+2);
+          off += 4;
+          result.layers.push('802.1Q VLAN');
+        }
+        result.layers.push('Ethernet');
+      } else {
+        result.etherType = 0x0800; // raw IP
+      }
+
+      // ARP
+      if (result.etherType === 0x0806) {
+        result.proto = 'ARP';
+        result.layers.push('ARP');
+        if (off+28 <= capLen) {
+          const op = v.getUint16(off+6);
+          result.arpInfo = {
+            op: op === 1 ? 'REQUEST' : op === 2 ? 'REPLY' : 'OP:'+op,
+            senderMac: mac(v,off+8),
+            senderIp:  ip4(v,off+14),
+            targetMac: mac(v,off+18),
+            targetIp:  ip4(v,off+24)
+          };
+          result.srcIp = result.arpInfo.senderIp;
+          result.dstIp = result.arpInfo.targetIp;
+        }
+        return result;
+      }
+
+      // IPv4
+      if (result.etherType === 0x0800) {
+        result.layers.push('IPv4');
+        if (off+20 > capLen) return result;
+        const ihl = (v.getUint8(off) & 0x0F) * 4;
+        result.ipTTL = v.getUint8(off+8);
+        result.ipProto = v.getUint8(off+9);
+        result.srcIp = ip4(v, off+12);
+        result.dstIp = ip4(v, off+16);
+        result.ipTotalLen = v.getUint16(off+2);
+        result.ipFlags = (v.getUint8(off+6) >> 5);
+        result.ipFragOff = ((v.getUint16(off+6) & 0x1FFF) * 8);
+        const l4off = off + ihl;
+        off = l4off;
+        dissectL4(v, result, off, capLen);
+      }
+
+      // IPv6
+      else if (result.etherType === 0x86DD) {
+        result.layers.push('IPv6');
+        if (off+40 > capLen) return result;
+        const nextHdr = v.getUint8(off+6);
+        result.ipProto = nextHdr;
+        result.srcIp = ipv6(v, off+8);
+        result.dstIp = ipv6(v, off+24);
+        result.ipTTL = v.getUint8(off+7); // hop limit
+        off += 40;
+        dissectL4(v, result, off, capLen);
+      }
+
+      // Unknown EtherType
+      else {
+        result.proto = '0x'+result.etherType.toString(16).toUpperCase();
+      }
+    }
+
+    // Raw IP (e.g. loopback linktype 0 or 12/101)
+    else if (linkType === 0 || linkType === 12 || linkType === 101) {
+      if (capLen < 4) return result;
+      let ipOff = 0;
+      if (linkType === 0) { ipOff = 4; } // BSD loopback has 4-byte AF
+      const ver = (v.getUint8(ipOff) >> 4);
+      if (ver === 4) {
+        result.layers.push('IPv4');
+        result.etherType = 0x0800;
+        const ihl = (v.getUint8(ipOff) & 0x0F) * 4;
+        result.ipProto = v.getUint8(ipOff+9);
+        result.srcIp = ip4(v, ipOff+12);
+        result.dstIp = ip4(v, ipOff+16);
+        result.ipTTL = v.getUint8(ipOff+8);
+        off = ipOff + ihl;
+        dissectL4(v, result, off, capLen);
+      }
+    }
+  } catch(e) { /* incomplete packet */ }
+  return result;
+}
+
+function ipv6(v, off) {
+  let parts = [];
+  for (let i = 0; i < 8; i++) parts.push(v.getUint16(off+i*2).toString(16));
+  return parts.join(':');
+}
+
+function dissectL4(v, result, off, capLen) {
+  const proto = result.ipProto;
+
+  // ICMP
+  if (proto === 1) {
+    result.proto = 'ICMP'; result.layers.push('ICMP');
+    if (off+4 <= capLen) {
+      const type = v.getUint8(off), code = v.getUint8(off+1);
+      const typeNames = {0:'Echo Reply',3:'Dest Unreachable',5:'Redirect',8:'Echo Request',11:'Time Exceeded',12:'Param Problem'};
+      result.icmpInfo = { type, code, name: typeNames[type]||'Type '+type };
+    }
+    return;
+  }
+
+  // ICMPv6
+  if (proto === 58) {
+    result.proto = 'ICMPv6'; result.layers.push('ICMPv6');
+    return;
+  }
+
+  // TCP
+  if (proto === 6) {
+    result.proto = 'TCP'; result.layers.push('TCP');
+    if (off+20 > capLen) return;
+    result.srcPort = v.getUint16(off);
+    result.dstPort = v.getUint16(off+2);
+    result.seqNum  = v.getUint32(off+4);
+    result.ackNum  = v.getUint32(off+8);
+    const dataOff  = ((v.getUint8(off+12) >> 4) * 4);
+    const flags    = v.getUint8(off+13);
+    result.tcpFlags = { FIN:!!(flags&1), SYN:!!(flags&2), RST:!!(flags&4), PSH:!!(flags&8), ACK:!!(flags&16), URG:!!(flags&32) };
+    result.tcpWindow = v.getUint16(off+14);
+    const appOff = off + dataOff;
+    const appLen = capLen - appOff;
+    if (appLen > 0) {
+      const appData = new DataView(v.buffer, v.byteOffset + appOff, Math.min(appLen, 4096));
+      dissectApp(appData, result, appLen);
+    }
+    // Detect service from port
+    result.service = detectService(result.srcPort, result.dstPort, 'TCP');
+    return;
+  }
+
+  // UDP
+  if (proto === 17) {
+    result.proto = 'UDP'; result.layers.push('UDP');
+    if (off+8 > capLen) return;
+    result.srcPort = v.getUint16(off);
+    result.dstPort = v.getUint16(off+2);
+    result.udpLen  = v.getUint16(off+4);
+    const appOff = off+8;
+    const appLen = capLen - appOff;
+    if (appLen > 0) {
+      const appData = new DataView(v.buffer, v.byteOffset + appOff, Math.min(appLen, 4096));
+      dissectApp(appData, result, appLen);
+    }
+    result.service = detectService(result.srcPort, result.dstPort, 'UDP');
+    return;
+  }
+
+  // OSPF
+  if (proto === 89) { result.proto = 'OSPF'; result.layers.push('OSPF'); }
+  // GRE
+  else if (proto === 47) { result.proto = 'GRE'; result.layers.push('GRE'); }
+  // ESP
+  else if (proto === 50) { result.proto = 'ESP'; result.layers.push('ESP'); }
+  // AH
+  else if (proto === 51) { result.proto = 'AH'; result.layers.push('AH'); }
+  // IGMP
+  else if (proto === 2) { result.proto = 'IGMP'; result.layers.push('IGMP'); }
+  else { result.proto = 'IP:'+proto; }
+}
+
+function dissectApp(v, result, len) {
+  try {
+    // DNS (UDP/TCP port 53)
+    if (result.srcPort === 53 || result.dstPort === 53) {
+      result.dnsInfo = parseDNS(v, len);
+      result.layers.push('DNS');
+      return;
+    }
+    // DHCP
+    if ((result.srcPort === 67 || result.dstPort === 67 || result.srcPort === 68 || result.dstPort === 68)) {
+      result.layers.push('DHCP');
+      return;
+    }
+    // HTTP
+    const firstBytes = readStr(v, 0, Math.min(8, len));
+    if (/^(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH|HTTP\/)/.test(firstBytes)) {
+      result.httpInfo = parseHTTP(v, len);
+      result.layers.push('HTTP');
+      return;
+    }
+    // TLS
+    if (len >= 5 && v.getUint8(0) >= 20 && v.getUint8(0) <= 23 && v.getUint16(1) >= 0x0300 && v.getUint16(1) <= 0x0304) {
+      result.tlsInfo = parseTLS(v, len);
+      result.layers.push('TLS');
+      return;
+    }
+    // SSH
+    if (readStr(v,0,4) === 'SSH-') {
+      result.layers.push('SSH');
+      return;
+    }
+    // FTP
+    if (/^(220|230|331|USER|PASS|RETR|STOR)/.test(readStr(v,0,4))) {
+      result.layers.push('FTP');
+      return;
+    }
+    // SMTP
+    if (/^(220|EHLO|HELO|MAIL|RCPT|DATA|250|354)/.test(readStr(v,0,4))) {
+      result.layers.push('SMTP');
+      return;
+    }
+    // NTP (UDP 123)
+    if (result.srcPort === 123 || result.dstPort === 123) {
+      result.layers.push('NTP');
+      return;
+    }
+    // mDNS
+    if (result.dstPort === 5353 || result.srcPort === 5353) {
+      result.dnsInfo = parseDNS(v, len);
+      result.layers.push('mDNS');
+      return;
+    }
+    // SSDP
+    if (result.srcPort === 1900 || result.dstPort === 1900) {
+      result.layers.push('SSDP');
+      return;
+    }
+  } catch(e) {}
+}
+
+function detectService(sport, dport, proto) {
+  const services = {20:'FTP-DATA',21:'FTP',22:'SSH',23:'TELNET',25:'SMTP',53:'DNS',67:'DHCP',68:'DHCP',
+    69:'TFTP',80:'HTTP',110:'POP3',119:'NNTP',123:'NTP',137:'NetBIOS-NS',138:'NetBIOS-DGM',
+    139:'NetBIOS-SSN',143:'IMAP',161:'SNMP',162:'SNMP-TRAP',179:'BGP',389:'LDAP',443:'HTTPS/TLS',
+    445:'SMB',465:'SMTPS',500:'IKE',514:'Syslog',515:'LPD',587:'SMTP',631:'IPP',636:'LDAPS',
+    853:'DNS-over-TLS',993:'IMAPS',995:'POP3S',1194:'OpenVPN',1433:'MSSQL',1723:'PPTP',
+    1900:'SSDP',2049:'NFS',3306:'MySQL',3389:'RDP',5353:'mDNS',5355:'LLMNR',5432:'PostgreSQL',
+    5900:'VNC',6379:'Redis',6881:'BitTorrent',8080:'HTTP-ALT',8443:'HTTPS-ALT',9200:'Elasticsearch',
+    27017:'MongoDB'};
+  return services[dport] || services[sport] || null;
+}
+
+// ─── DNS PARSER ───────────────────────────────────────────────────────────────
+function parseDNS(v, len) {
+  if (len < 12) return null;
+  const id = v.getUint16(0);
+  const flags = v.getUint16(2);
+  const qr = (flags >> 15) & 1;
+  const opcode = (flags >> 11) & 0xF;
+  const rcode = flags & 0xF;
+  const qdCount = v.getUint16(4);
+  const anCount = v.getUint16(6);
+  const nsCount = v.getUint16(8);
+  const arCount = v.getUint16(10);
+
+  const dnsTypes = {1:'A',2:'NS',5:'CNAME',6:'SOA',12:'PTR',15:'MX',16:'TXT',28:'AAAA',33:'SRV',255:'ANY'};
+  const rcodes = {0:'NOERROR',1:'FORMERR',2:'SERVFAIL',3:'NXDOMAIN',4:'NOTIMP',5:'REFUSED'};
+
+  let questions = [], answers = [];
+  let off = 12;
+
+  function readName() {
+    let labels = [], visited = new Set(), hops = 0;
+    let origOff = off;
+    while (off < len) {
+      const len2 = v.getUint8(off);
+      if (len2 === 0) { off++; break; }
+      if ((len2 & 0xC0) === 0xC0) { // pointer
+        const ptr = ((len2 & 0x3F) << 8) | v.getUint8(off+1);
+        off += 2;
+        if (visited.has(ptr)) break;
+        visited.add(ptr);
+        let savedOff = off;
+        off = ptr;
+        labels.push(readNameAt(ptr));
+        off = savedOff;
+        return labels.join('.');
+      }
+      off++;
+      let label = '';
+      for (let i = 0; i < len2 && off < len; i++) label += String.fromCharCode(v.getUint8(off++));
+      labels.push(label);
+    }
+    return labels.join('.');
+  }
+
+  function readNameAt(startOff) {
+    let labels = [], o = startOff, depth = 0;
+    while (o < len && depth < 20) {
+      const l = v.getUint8(o);
+      if (l === 0) break;
+      if ((l & 0xC0) === 0xC0) { o = ((l & 0x3F) << 8) | v.getUint8(o+1); continue; }
+      o++;
+      let label = '';
+      for (let i = 0; i < l && o < len; i++) label += String.fromCharCode(v.getUint8(o++));
+      labels.push(label);
+      depth++;
+    }
+    return labels.join('.');
+  }
+
+  try {
+    for (let i = 0; i < qdCount && off < len; i++) {
+      const name = readName();
+      const type = v.getUint16(off); off += 2;
+      const cls  = v.getUint16(off); off += 2;
+      questions.push({ name, type: dnsTypes[type]||type, cls });
+    }
+    for (let i = 0; i < anCount && off < len; i++) {
+      const name = readName();
+      const type = v.getUint16(off); off += 2;
+      const cls  = v.getUint16(off); off += 2;
+      const ttl  = v.getUint32(off); off += 4;
+      const rdLen = v.getUint16(off); off += 2;
+      let rdata = '';
+      const typeN = dnsTypes[type]||type;
+      if (typeN === 'A' && rdLen === 4) rdata = ip4(v, off);
+      else if (typeN === 'AAAA' && rdLen === 16) rdata = ipv6(v, off);
+      else if (typeN === 'CNAME' || typeN === 'PTR' || typeN === 'NS') { let saved = off; rdata = readNameAt(off); off = saved; }
+      else if (typeN === 'MX' && rdLen >= 2) { const pref = v.getUint16(off); rdata = `${pref} ${readNameAt(off+2)}`; }
+      else rdata = '[raw]';
+      off += rdLen;
+      answers.push({ name, type: typeN, rdata, ttl });
+    }
+  } catch(e) {}
+
+  return { id, isResponse: !!qr, opcode, rcode: rcodes[rcode]||rcode, questions, answers, anCount, nsCount, arCount };
+}
+
+// ─── HTTP PARSER ─────────────────────────────────────────────────────────────
+function parseHTTP(v, len) {
+  let raw = '';
+  for (let i = 0; i < Math.min(len, 2048); i++) raw += String.fromCharCode(v.getUint8(i));
+  const lines = raw.split(/\r?\n/);
+  const firstLine = lines[0];
+  const headers = {};
+  let i = 1;
+  while (i < lines.length && lines[i].trim()) {
+    const m = lines[i].match(/^([^:]+):\s*(.*)/);
+    if (m) headers[m[1].toLowerCase()] = m[2];
+    i++;
+  }
+  const isRequest = /^(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH)/.test(firstLine);
+  return { firstLine, headers, isRequest };
+}
+
+// ─── TLS PARSER ──────────────────────────────────────────────────────────────
+function parseTLS(v, len) {
+  const types = {20:'ChangeCipherSpec',21:'Alert',22:'Handshake',23:'ApplicationData'};
+  const versions = {0x0300:'SSL3',0x0301:'TLS1.0',0x0302:'TLS1.1',0x0303:'TLS1.2',0x0304:'TLS1.3'};
+  const recType = v.getUint8(0);
+  const ver = v.getUint16(1);
+  const recLen = v.getUint16(3);
+  let handshakeType = null, sni = null;
+  if (recType === 22 && len >= 6) {
+    handshakeType = v.getUint8(5);
+    const hsTypes = {1:'ClientHello',2:'ServerHello',11:'Certificate',12:'ServerKeyExchange',14:'ServerHelloDone',16:'ClientKeyExchange',20:'Finished'};
+    // Try to extract SNI from ClientHello
+    if (handshakeType === 1 && len > 50) {
+      try { sni = extractSNI(v, len); } catch(e){}
+    }
+    handshakeType = hsTypes[handshakeType] || 'Type:'+handshakeType;
+  }
+  return { type: types[recType]||'Type:'+recType, version: versions[ver]||'0x'+ver.toString(16), handshakeType, sni };
+}
+
+function extractSNI(v, len) {
+  // ClientHello: [1B HS type][3B len][2B ver][32B random][1B session len][...]
+  let off = 5; // skip TLS record header
+  off += 4; // HS type + length
+  off += 2; // client version
+  off += 32; // random
+  if (off >= len) return null;
+  const sessLen = v.getUint8(off++);
+  off += sessLen;
+  if (off+2 >= len) return null;
+  const cipherLen = v.getUint16(off); off += 2+cipherLen;
+  if (off+1 >= len) return null;
+  const compLen = v.getUint8(off++); off += compLen;
+  if (off+2 >= len) return null;
+  const extLen = v.getUint16(off); off += 2;
+  const extEnd = off + extLen;
+  while (off+4 <= Math.min(extEnd, len)) {
+    const extType = v.getUint16(off); off += 2;
+    const extDataLen = v.getUint16(off); off += 2;
+    if (extType === 0) { // SNI
+      if (off+5 <= len) {
+        const listLen = v.getUint16(off+2);
+        const nameType = v.getUint8(off+4);
+        if (nameType === 0 && off+7 <= len) {
+          const nameLen = v.getUint16(off+5);
+          let name = '';
+          for (let i = 0; i < nameLen && off+7+i < len; i++) name += String.fromCharCode(v.getUint8(off+7+i));
+          return name;
+        }
+      }
+    }
+    off += extDataLen;
+  }
+  return null;
+}
+
+// ─── ANALYSIS ENGINE ─────────────────────────────────────────────────────────
+function analyze(buf, filename, fileSize) {
+  setProgress(15, 'DETECTING FORMAT...');
+  const v = new DataView(buf);
+  if (buf.byteLength < 8) throw new Error('File too small');
+
+  const magic = v.getUint32(0, true);
+  let parsed;
+  if (magic === 0x0A0D0D0A) {
+    parsed = parsePcapng(buf);
+  } else if (magic === 0xa1b2c3d4 || magic === 0xd4c3b2a1 || magic === 0xa1b23c4d || magic === 0xa1b2cd34) {
+    parsed = parsePcapClassic(buf);
+  } else {
+    throw new Error(`Unknown file format (magic: 0x${magic.toString(16).toUpperCase()})`);
+  }
+
+  setProgress(30, `DISSECTING ${fmt(parsed.packets.length)} PACKETS...`);
+
+  const stats = {
+    fileType: parsed.fileType,
+    filename, fileSize,
+    totalPackets: parsed.packets.length,
+    totalBytes: 0,
+    capturedBytes: 0,
+    protos: {},
+    services: {},
+    ethertypes: {},
+    ips: { src:{}, dst:{}, all:{} },
+    macs: {},
+    ports: { tcp:{}, udp:{} },
+    conversations: {},
+    dnsQueries: [],
+    dnsAnswers: [],
+    httpRequests: [],
+    httpResponses: [],
+    tlsSessions: [],
+    arpEntries: {},
+    icmpTypes: {},
+    flags: { syn:0, fin:0, rst:0, psh:0, ack:0, urg:0 },
+    tcpHandshakes: [],
+    packetSizes: [],
+    layers: {},
+    vlans: {},
+    ipTTLs: {},
+    firstTs: null, lastTs: null,
+    truncated: 0,
+    ipFragments: 0,
+    interfaces: parsed.ifaceMap || {},
+    packets: [] // full parsed packet list (up to 10k displayed)
+  };
+
+  parsed.packets.forEach((pkt, idx) => {
+    if (idx % 500 === 0) setProgress(30 + (idx/parsed.packets.length)*50, `DISSECTING PACKET ${fmt(idx+1)} / ${fmt(parsed.packets.length)}`);
+    stats.totalBytes += pkt.origLen;
+    stats.capturedBytes += pkt.capLen;
+    if (pkt.capLen < pkt.origLen) stats.truncated++;
+    stats.packetSizes.push(pkt.capLen);
+    if (stats.firstTs === null) stats.firstTs = pkt.ts;
+    stats.lastTs = pkt.ts;
+
+    const d = dissectPacket(buf, pkt.dataOff, pkt.capLen, pkt.linkType);
+
+    // Track layers
+    d.layers.forEach(l => { stats.layers[l] = (stats.layers[l]||0)+1; });
+
+    // Proto
+    if (d.proto) stats.protos[d.proto] = (stats.protos[d.proto]||0)+1;
+
+    // EtherType
+    if (d.etherType) {
+      const etNames = {0x0800:'IPv4',0x0806:'ARP',0x86DD:'IPv6',0x8100:'802.1Q',0x8847:'MPLS',0x88CC:'LLDP',0x88A8:'QinQ'};
+      const etN = etNames[d.etherType]||('0x'+d.etherType.toString(16).toUpperCase());
+      stats.ethertypes[etN] = (stats.ethertypes[etN]||0)+1;
+    }
+
+    // MACs
+    if (d.srcMac) stats.macs[d.srcMac] = (stats.macs[d.srcMac]||0)+1;
+    if (d.dstMac) stats.macs[d.dstMac] = (stats.macs[d.dstMac]||0)+1;
+
+    // IPs
+    if (d.srcIp) { stats.ips.src[d.srcIp]=(stats.ips.src[d.srcIp]||0)+1; stats.ips.all[d.srcIp]=(stats.ips.all[d.srcIp]||0)+1; }
+    if (d.dstIp) { stats.ips.dst[d.dstIp]=(stats.ips.dst[d.dstIp]||0)+1; stats.ips.all[d.dstIp]=(stats.ips.all[d.dstIp]||0)+1; }
+
+    // TTL
+    if (d.ipTTL !== undefined) { const t = d.ipTTL; stats.ipTTLs[t]=(stats.ipTTLs[t]||0)+1; }
+
+    // IP frags
+    if (d.ipFragOff > 0) stats.ipFragments++;
+
+    // VLAN
+    if (d.vlanId !== undefined) stats.vlans[d.vlanId]=(stats.vlans[d.vlanId]||0)+1;
+
+    // Ports
+    if (d.srcPort && d.proto==='TCP') stats.ports.tcp[d.srcPort]=(stats.ports.tcp[d.srcPort]||0)+1;
+    if (d.dstPort && d.proto==='TCP') stats.ports.tcp[d.dstPort]=(stats.ports.tcp[d.dstPort]||0)+1;
+    if (d.srcPort && d.proto==='UDP') stats.ports.udp[d.srcPort]=(stats.ports.udp[d.srcPort]||0)+1;
+    if (d.dstPort && d.proto==='UDP') stats.ports.udp[d.dstPort]=(stats.ports.udp[d.dstPort]||0)+1;
+
+    // Services
+    if (d.service) stats.services[d.service]=(stats.services[d.service]||0)+1;
+
+    // Conversations
+    if (d.srcIp && d.dstIp) {
+      const key = [d.srcIp,d.dstIp].sort().join(' ↔ ');
+      if (!stats.conversations[key]) stats.conversations[key] = { packets:0, bytes:0, protos:new Set() };
+      stats.conversations[key].packets++;
+      stats.conversations[key].bytes += pkt.capLen;
+      if (d.proto) stats.conversations[key].protos.add(d.proto);
+    }
+
+    // TCP Flags
+    if (d.tcpFlags) {
+      if (d.tcpFlags.SYN) stats.flags.syn++;
+      if (d.tcpFlags.FIN) stats.flags.fin++;
+      if (d.tcpFlags.RST) stats.flags.rst++;
+      if (d.tcpFlags.PSH) stats.flags.psh++;
+      if (d.tcpFlags.ACK) stats.flags.ack++;
+      if (d.tcpFlags.URG) stats.flags.urg++;
+    }
+
+    // DNS
+    if (d.dnsInfo) {
+      if (d.dnsInfo.questions) d.dnsInfo.questions.forEach(q => stats.dnsQueries.push({ name:q.name, type:q.type, src:d.srcIp }));
+      if (d.dnsInfo.answers)   d.dnsInfo.answers.forEach(a => stats.dnsAnswers.push({ name:a.name, type:a.type, rdata:a.rdata, ttl:a.ttl }));
+    }
+
+    // HTTP
+    if (d.httpInfo) {
+      if (d.httpInfo.isRequest) stats.httpRequests.push({ ...d.httpInfo, src:d.srcIp, dst:d.dstIp, sport:d.srcPort, dport:d.dstPort });
+      else stats.httpResponses.push({ ...d.httpInfo, src:d.srcIp, dst:d.dstIp });
+    }
+
+    // TLS
+    if (d.tlsInfo) {
+      if (d.tlsInfo.handshakeType === 'ClientHello' || d.tlsInfo.sni) {
+        stats.tlsSessions.push({ src:d.srcIp, dst:d.dstIp, sport:d.srcPort, dport:d.dstPort, ...d.tlsInfo });
+      }
+    }
+
+    // ARP
+    if (d.arpInfo) {
+      const k = d.arpInfo.senderIp;
+      if (k) stats.arpEntries[k] = d.arpInfo.senderMac;
+    }
+
+    // ICMP
+    if (d.icmpInfo) {
+      const key = d.icmpInfo.name;
+      stats.icmpTypes[key] = (stats.icmpTypes[key]||0)+1;
+    }
+
+    // Packet list (limit to 5000 for performance)
+    if (stats.packets.length < 5000) {
+      stats.packets.push({ no: idx+1, ts: pkt.ts, capLen: pkt.capLen, origLen: pkt.origLen,
+        srcIp: d.srcIp, dstIp: d.dstIp, srcPort: d.srcPort, dstPort: d.dstPort,
+        proto: d.proto, layers: d.layers,
+        tcpFlags: d.tcpFlags ? Object.entries(d.tcpFlags).filter(([,v])=>v).map(([k])=>k).join(' ') : '',
+        info: buildInfo(d) });
+    }
+  });
+
+  setProgress(85, 'RENDERING REPORT...');
+  render(stats);
+  setProgress(100, 'COMPLETE');
+  setTimeout(() => { $('progress-bar-wrap').style.display = 'none'; }, 800);
+}
+
+function buildInfo(d) {
+  if (d.dnsInfo) {
+    const q = d.dnsInfo.questions[0];
+    const a = d.dnsInfo.answers[0];
+    if (q) return `${d.dnsInfo.isResponse?'Response':'Query'}: ${q.name} (${q.type})${a?' → '+a.rdata:''}`;
+    return d.dnsInfo.isResponse ? 'DNS Response' : 'DNS Query';
+  }
+  if (d.httpInfo) return d.httpInfo.firstLine;
+  if (d.tlsInfo) return `${d.tlsInfo.type} / ${d.tlsInfo.version}${d.tlsInfo.handshakeType?' ['+d.tlsInfo.handshakeType+']':''}${d.tlsInfo.sni?' SNI:'+d.tlsInfo.sni:''}`;
+  if (d.arpInfo) return `ARP ${d.arpInfo.op}: ${d.arpInfo.senderIp} → ${d.arpInfo.targetIp}`;
+  if (d.icmpInfo) return `ICMP ${d.icmpInfo.name} (type=${d.icmpInfo.type})`;
+  if (d.tcpFlags) {
+    const flagStr = Object.entries(d.tcpFlags).filter(([,v])=>v).map(([k])=>k).join(',');
+    return `${d.srcPort}→${d.dstPort} [${flagStr}]`;
+  }
+  if (d.srcPort) return `${d.srcPort} → ${d.dstPort}`;
+  return '';
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render(s) {
+  const out = $('output');
+  out.innerHTML = '';
+
+  const duration = (s.lastTs !== null && s.firstTs !== null) ? (s.lastTs - s.firstTs) : 0;
+  const avgPps = duration > 0 ? (s.totalPackets / duration).toFixed(1) : 'N/A';
+  const avgBps = duration > 0 ? fmt(Math.round(s.totalBytes * 8 / duration)) : 'N/A';
+  const avgPktSize = s.totalPackets > 0 ? Math.round(s.capturedBytes / s.totalPackets) : 0;
+
+  // ── IPv4 ADDRESSES (FIRST) ───────────────────────────────────────────────
+  const ipv4Only = Object.fromEntries(Object.entries(s.ips.all).filter(([ip]) => /^\d+\.\d+\.\d+\.\d+$/.test(ip)));
+  const allIpv4Entries = sortedEntries(ipv4Only);
+  appendSection(out, '🌍', 'ALL IPv4 ADDRESSES', allIpv4Entries.length, `
+    <div class="search-bar"><input type="text" placeholder="FILTER IPs..." oninput="filterTable(this,'ipv4-first-table')"></div>
+    <table class="data-table" id="ipv4-first-table">
+      <tr><th>IP Address</th><th>As Source</th><th>As Dest</th><th>Total Packets</th><th>Classification</th></tr>
+      ${allIpv4Entries.map(([ip,c])=>`
+        <tr>
+          <td class="ip">${ip}</td>
+          <td>${fmt(s.ips.src[ip]||0)}</td>
+          <td>${fmt(s.ips.dst[ip]||0)}</td>
+          <td>${fmt(c)}</td>
+          <td style="color:var(--muted);font-size:0.7rem">${classifyIP(ip)}</td>
+        </tr>`).join('')}
+    </table>
+  `);
+
+  // ── SUMMARY ─────────────────────────────────────────────────────────────────
+  appendSection(out, '📊', 'CAPTURE SUMMARY', null, `
+    <div class="stat-grid">
+      ${stat('File', s.filename, 'small')}
+      ${stat('Format', s.fileType)}
+      ${stat('File Size', fmtBytes(s.fileSize))}
+      ${stat('Total Packets', fmt(s.totalPackets))}
+      ${stat('Total Data', fmtBytes(s.totalBytes))}
+      ${stat('Captured', fmtBytes(s.capturedBytes))}
+      ${stat('Duration', duration > 0 ? duration.toFixed(3)+' s' : '—')}
+      ${stat('Avg Packet/s', avgPps)}
+      ${stat('Avg Bits/s', avgBps + (avgBps!=='N/A'?' bps':''))}
+      ${stat('Avg Pkt Size', avgPktSize+' B')}
+      ${stat('Truncated Pkts', fmt(s.truncated), s.truncated?'warn':'')}
+      ${stat('IP Fragments', fmt(s.ipFragments))}
+    </div>
+  `);
+
+  // ── PROTOCOL BREAKDOWN ────────────────────────────────────────────────────
+  const protoEntries = sortedEntries(s.protos);
+  appendSection(out, '🔬', 'PROTOCOL DISTRIBUTION', protoEntries.length, `
+    <table class="data-table">
+      <tr><th>Protocol</th><th>Packets</th><th>% of Total</th><th>Bar</th></tr>
+      ${protoEntries.map(([p,c])=>`
+        <tr>
+          <td>${protoTag(p)}</td>
+          <td>${fmt(c)}</td>
+          <td>${pct(c,s.totalPackets)}</td>
+          <td style="min-width:100px">${miniBar(c,protoEntries[0][1])}</td>
+        </tr>`).join('')}
+    </table>
+  `);
+
+  // ── ETHERTYPES ────────────────────────────────────────────────────────────
+  const etEntries = sortedEntries(s.ethertypes);
+  appendSection(out, '🔌', 'ETHERTYPE / L2 PROTOCOLS', etEntries.length, `
+    <table class="data-table">
+      <tr><th>EtherType</th><th>Packets</th><th>%</th></tr>
+      ${etEntries.map(([e,c])=>`<tr><td>${e}</td><td>${fmt(c)}</td><td>${pct(c,s.totalPackets)}</td></tr>`).join('')}
+    </table>
+  `);
+
+  // ── LAYERS ───────────────────────────────────────────────────────────────
+  const layerEntries = sortedEntries(s.layers);
+  appendSection(out, '🗂️', 'PROTOCOL LAYERS SEEN', layerEntries.length, `
+    <table class="data-table">
+      <tr><th>Layer / Protocol</th><th>Count</th></tr>
+      ${layerEntries.map(([l,c])=>`<tr><td>${l}</td><td>${fmt(c)}</td></tr>`).join('')}
+    </table>
+  `);
+
+  // ── SERVICES ─────────────────────────────────────────────────────────────
+  const svcEntries = sortedEntries(s.services);
+  if (svcEntries.length) appendSection(out, '🌐', 'APPLICATION SERVICES DETECTED', svcEntries.length, `
+    <table class="data-table">
+      <tr><th>Service</th><th>Packets</th></tr>
+      ${svcEntries.map(([sv,c])=>`<tr><td>${sv}</td><td>${fmt(c)}</td></tr>`).join('')}
+    </table>
+  `);
+
+  // ── MAC ADDRESSES ─────────────────────────────────────────────────────────
+  const macEntries = sortedEntries(s.macs);
+  if (macEntries.length) appendSection(out, '📡', 'MAC ADDRESSES', macEntries.length, `
+    <table class="data-table">
+      <tr><th>MAC Address</th><th>Packets</th><th>OUI Prefix</th></tr>
+      ${macEntries.map(([m,c])=>`<tr><td>${m}</td><td>${fmt(c)}</td><td style="color:var(--muted)">${m.slice(0,8).toUpperCase()}</td></tr>`).join('')}
+    </table>
+  `);
+
+  // ── TCP PORTS ─────────────────────────────────────────────────────────────
+  const tcpPortEntries = sortedEntries(s.ports.tcp).slice(0,50);
+  if (tcpPortEntries.length) appendSection(out, '🔀', 'TCP PORTS', Object.keys(s.ports.tcp).length, `
+    <table class="data-table">
+      <tr><th>Port</th><th>Packets</th><th>Service</th></tr>
+      ${tcpPortEntries.map(([p,c])=>`<tr><td class="port">${p}</td><td>${fmt(c)}</td><td style="color:var(--muted)">${detectService(p,0,'TCP')||''}</td></tr>`).join('')}
+    </table>
+  `);
+
+  // ── UDP PORTS ─────────────────────────────────────────────────────────────
+  const udpPortEntries = sortedEntries(s.ports.udp).slice(0,50);
+  if (udpPortEntries.length) appendSection(out, '🔁', 'UDP PORTS', Object.keys(s.ports.udp).length, `
+    <table class="data-table">
+      <tr><th>Port</th><th>Packets</th><th>Service</th></tr>
+      ${udpPortEntries.map(([p,c])=>`<tr><td class="port">${p}</td><td>${fmt(c)}</td><td style="color:var(--muted)">${detectService(p,0,'UDP')||''}</td></tr>`).join('')}
+    </table>
+  `);
+
+  // ── CONVERSATIONS ─────────────────────────────────────────────────────────
+  const convEntries = Object.entries(s.conversations).sort((a,b)=>b[1].bytes-a[1].bytes).slice(0,50);
+  appendSection(out, '💬', 'TOP IP CONVERSATIONS', convEntries.length, `
+    <table class="data-table">
+      <tr><th>Endpoint Pair</th><th>Packets</th><th>Bytes</th><th>Protocols</th></tr>
+      ${convEntries.map(([k,v])=>`
+        <tr>
+          <td class="ip" style="font-size:0.72rem">${k}</td>
+          <td>${fmt(v.packets)}</td>
+          <td>${fmtBytes(v.bytes)}</td>
+          <td style="color:var(--muted);font-size:0.7rem">${[...v.protos].join(', ')}</td>
+        </tr>`).join('')}
+    </table>
+  `);
+
+  // ── TCP FLAGS ─────────────────────────────────────────────────────────────
+  if (s.flags.syn + s.flags.rst > 0) appendSection(out, '🚩', 'TCP FLAGS', null, `
+    <div class="stat-grid">
+      ${stat('SYN', fmt(s.flags.syn))}
+      ${stat('SYN-ACK (↓ACK+SYN)', '—')}
+      ${stat('ACK', fmt(s.flags.ack))}
+      ${stat('FIN', fmt(s.flags.fin))}
+      ${stat('RST', fmt(s.flags.rst), s.flags.rst > 100 ? 'warn' : '')}
+      ${stat('PSH', fmt(s.flags.psh))}
+      ${stat('URG', fmt(s.flags.urg))}
+    </div>
+  `);
+
+  // ── DNS ───────────────────────────────────────────────────────────────────
+  if (s.dnsQueries.length || s.dnsAnswers.length) {
+    const uniqueQueries = [...new Map(s.dnsQueries.map(q=>[q.name+q.type,q])).values()];
+    const uniqueAnswers = [...new Map(s.dnsAnswers.map(a=>[a.name+a.rdata,a])).values()];
+    appendSection(out, '🔍', 'DNS QUERIES & ANSWERS', s.dnsQueries.length, `
+      <div style="margin-bottom:0.8rem">
+        <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.5rem;letter-spacing:0.1em">QUERIES (${uniqueQueries.length} unique)</div>
+        <table class="data-table">
+          <tr><th>Name</th><th>Type</th><th>Source IP</th></tr>
+          ${uniqueQueries.slice(0,100).map(q=>`<tr><td class="dns-name">${q.name||'.'}</td><td>${q.type}</td><td class="ip">${q.src||''}</td></tr>`).join('')}
+        </table>
+      </div>
+      ${uniqueAnswers.length ? `
+      <div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.5rem;letter-spacing:0.1em">ANSWERS / RECORDS (${uniqueAnswers.length} unique)</div>
+        <table class="data-table">
+          <tr><th>Name</th><th>Type</th><th>Value</th><th>TTL</th></tr>
+          ${uniqueAnswers.slice(0,100).map(a=>`<tr><td class="dns-name">${a.name}</td><td>${a.type}</td><td class="ip">${a.rdata}</td><td style="color:var(--muted)">${a.ttl}s</td></tr>`).join('')}
+        </table>
+      </div>` : ''}
+    `);
+  }
+
+  // ── HTTP ──────────────────────────────────────────────────────────────────
+  if (s.httpRequests.length || s.httpResponses.length) {
+    appendSection(out, '🌐', 'HTTP TRAFFIC', s.httpRequests.length + s.httpResponses.length, `
+      ${s.httpRequests.length ? `
+        <div style="margin-bottom:0.8rem">
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.5rem;letter-spacing:0.1em">REQUESTS (${s.httpRequests.length})</div>
+          <table class="data-table">
+            <tr><th>Request Line</th><th>Host</th><th>Source IP</th><th>Dest IP</th></tr>
+            ${s.httpRequests.slice(0,100).map(r=>`<tr><td style="color:var(--accent3)">${esc(r.firstLine)}</td><td style="color:var(--accent)">${esc(r.headers['host']||'')}</td><td class="ip">${r.src||''}</td><td class="ip">${r.dst||''}</td></tr>`).join('')}
+          </table>
+        </div>` : ''}
+      ${s.httpResponses.length ? `
+        <div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.5rem;letter-spacing:0.1em">RESPONSES (${s.httpResponses.length})</div>
+          <table class="data-table">
+            <tr><th>Status Line</th><th>Content-Type</th></tr>
+            ${s.httpResponses.slice(0,50).map(r=>`<tr><td style="color:var(--accent2)">${esc(r.firstLine)}</td><td style="color:var(--muted)">${esc(r.headers['content-type']||'')}</td></tr>`).join('')}
+          </table>
+        </div>` : ''}
+    `);
+  }
+
+  // ── TLS ───────────────────────────────────────────────────────────────────
+  if (s.tlsSessions.length) {
+    appendSection(out, '🔒', 'TLS / HTTPS SESSIONS', s.tlsSessions.length, `
+      <table class="data-table">
+        <tr><th>Source IP</th><th>Dest IP</th><th>Port</th><th>Version</th><th>Handshake</th><th>SNI (Hostname)</th></tr>
+        ${s.tlsSessions.slice(0,100).map(t=>`
+          <tr>
+            <td class="ip">${t.src||''}</td>
+            <td class="ip">${t.dst||''}</td>
+            <td class="port">${t.dport||''}</td>
+            <td style="color:var(--warn)">${t.version}</td>
+            <td style="color:var(--muted)">${t.handshakeType||''}</td>
+            <td style="color:var(--accent2)">${t.sni||'—'}</td>
+          </tr>`).join('')}
+      </table>
+    `);
+  }
+
+  // ── ARP ───────────────────────────────────────────────────────────────────
+  if (Object.keys(s.arpEntries).length) {
+    appendSection(out, '📋', 'ARP TABLE (IP → MAC MAPPINGS)', Object.keys(s.arpEntries).length, `
+      <table class="data-table">
+        <tr><th>IP Address</th><th>MAC Address</th></tr>
+        ${Object.entries(s.arpEntries).map(([ip,m])=>`<tr><td class="ip">${ip}</td><td>${m}</td></tr>`).join('')}
+      </table>
+    `);
+  }
+
+  // ── ICMP ──────────────────────────────────────────────────────────────────
+  if (Object.keys(s.icmpTypes).length) {
+    appendSection(out, '📶', 'ICMP MESSAGE TYPES', null, `
+      <table class="data-table">
+        <tr><th>Type</th><th>Count</th></tr>
+        ${Object.entries(s.icmpTypes).sort((a,b)=>b[1]-a[1]).map(([t,c])=>`<tr><td>${t}</td><td>${fmt(c)}</td></tr>`).join('')}
+      </table>
+    `);
+  }
+
+  // ── VLANs ─────────────────────────────────────────────────────────────────
+  if (Object.keys(s.vlans).length) {
+    appendSection(out, '🏷️', 'VLAN IDs', Object.keys(s.vlans).length, `
+      <table class="data-table">
+        <tr><th>VLAN ID</th><th>Packets</th></tr>
+        ${sortedEntries(s.vlans).map(([v,c])=>`<tr><td>${v}</td><td>${fmt(c)}</td></tr>`).join('')}
+      </table>
+    `);
+  }
+
+  // ── IP TTL DISTRIBUTION ───────────────────────────────────────────────────
+  const ttlEntries = sortedEntries(s.ipTTLs);
+  if (ttlEntries.length) appendSection(out, '⏱️', 'IP TTL DISTRIBUTION', ttlEntries.length, `
+    <table class="data-table">
+      <tr><th>TTL</th><th>Packets</th><th>Likely OS</th></tr>
+      ${ttlEntries.slice(0,20).map(([t,c])=>`<tr><td>${t}</td><td>${fmt(c)}</td><td style="color:var(--muted)">${ttlOS(+t)}</td></tr>`).join('')}
+    </table>
+  `);
+
+  // ── INTERFACES ────────────────────────────────────────────────────────────
+  if (Object.keys(s.interfaces).length) {
+    const linkNames = {1:'Ethernet',0:'BSD Loopback',6:'Token Ring',10:'FDDI',12:'Raw IP',101:'Raw IP',105:'IEEE 802.11 WiFi',113:'Linux cooked',127:'IEEE 802.11 radiotap',228:'IPv4',229:'IPv6'};
+    appendSection(out, '🖧', 'CAPTURE INTERFACES', Object.keys(s.interfaces).length, `
+      <table class="data-table">
+        <tr><th>Interface ID</th><th>Link Type</th><th>TS Resolution</th></tr>
+        ${Object.entries(s.interfaces).map(([id,iface])=>`
+          <tr>
+            <td>${id}</td>
+            <td>${linkNames[iface.linkType]||'Type '+iface.linkType} (${iface.linkType})</td>
+            <td>10^-${iface.tsResol} s</td>
+          </tr>`).join('')}
+      </table>
+    `);
+  }
+
+  // ── ANOMALIES / ALERTS ────────────────────────────────────────────────────
+  const alerts = [];
+  if (s.flags.rst > 200) alerts.push({ level:'warn', msg:`High RST count (${fmt(s.flags.rst)}) — possible port scans, connection resets, or firewall blocks` });
+  if (s.flags.syn > 1000 && s.flags.ack < s.flags.syn * 0.5) alerts.push({ level:'warn', msg:`High SYN count without proportional ACKs — possible SYN flood or port scanning` });
+  if (s.truncated > s.totalPackets * 0.1) alerts.push({ level:'warn', msg:`${pct(s.truncated,s.totalPackets)} of packets are truncated — capture buffer may have been too small` });
+  if (s.ipFragments > 0) alerts.push({ level:'info', msg:`${fmt(s.ipFragments)} IP fragmented packets detected` });
+  if (s.httpRequests.some(r=>/Authorization|password/i.test(JSON.stringify(r.headers)))) alerts.push({ level:'warn', msg:'HTTP requests with Authorization headers detected (potential credentials in cleartext)' });
+  const sensitiveHosts = s.tlsSessions.filter(t=>t.sni && /login|admin|account|bank|secure|auth/i.test(t.sni));
+  if (sensitiveHosts.length) alerts.push({ level:'warn', msg:`TLS sessions to sensitive hostnames: ${sensitiveHosts.map(t=>t.sni).join(', ')}` });
+  if (s.protos['ICMP'] > 500) alerts.push({ level:'warn', msg:`High ICMP volume (${fmt(s.protos['ICMP'])}) — possible ICMP flood or tunneling` });
+
+  if (alerts.length) appendSection(out, '⚠', 'ANOMALIES & ALERTS', alerts.length, alerts.map(a=>`
+    <div class="alert-item ${a.level}">
+      <span>${a.level==='warn'?'⚠':'ℹ'}</span>
+      <span>${a.msg}</span>
+    </div>`).join(''));
+
+  // ── PACKET LIST ───────────────────────────────────────────────────────────
+  appendSection(out, '📦', `PACKET LIST (showing ${fmt(Math.min(s.packets.length,5000))} of ${fmt(s.totalPackets)})`, s.totalPackets, `
+    <div class="search-bar">
+      <input type="text" id="pkt-search" placeholder="FILTER: IP, PORT, PROTOCOL, INFO..." oninput="filterPackets(this.value)">
+    </div>
+    <div class="packets-container" id="pkt-container">
+      <div class="packet-row header-row">
+        <span>NO.</span><span>TIMESTAMP</span><span>SOURCE</span><span>DESTINATION</span>
+        <span>PROTO</span><span>LEN</span><span>FLAGS</span><span>INFO</span>
+      </div>
+      <div id="pkt-rows">${s.packets.map(p=>packetRow(p)).join('')}</div>
+    </div>
+  `, true);
+
+  // Store packets for filtering
+  window._packets = s.packets;
+}
+
+function packetRow(p) {
+  const protoColor = { TCP:'var(--accent)', UDP:'var(--accent2)', ICMP:'var(--accent3)', ARP:'var(--warn)', DNS:'#c864ff', HTTP:'var(--danger)', TLS:'#7ecfff' };
+  const col = protoColor[p.proto] || 'var(--muted)';
+  const src = p.srcIp ? (p.srcPort ? `${p.srcIp}:${p.srcPort}` : p.srcIp) : '—';
+  const dst = p.dstIp ? (p.dstPort ? `${p.dstIp}:${p.dstPort}` : p.dstIp) : '—';
+  const ts = p.ts > 0 ? p.ts.toFixed(6) : '—';
+  return `<div class="packet-row" data-info="${esc(src+' '+dst+' '+(p.proto||'')+' '+p.info).toLowerCase()}">
+    <span style="color:var(--muted)">${p.no}</span>
+    <span style="color:var(--muted);font-size:0.68rem">${ts}</span>
+    <span class="ip" style="font-size:0.68rem">${esc(src)}</span>
+    <span class="ip" style="font-size:0.68rem">${esc(dst)}</span>
+    <span style="color:${col};font-size:0.68rem;font-weight:bold">${p.proto||'—'}</span>
+    <span style="color:var(--muted)">${p.capLen}</span>
+    <span style="color:var(--warn);font-size:0.65rem">${p.tcpFlags}</span>
+    <span style="font-size:0.68rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.info)}</span>
+  </div>`;
+}
+
+window.filterPackets = function(q) {
+  const rows = document.querySelectorAll('#pkt-rows .packet-row');
+  const lq = q.toLowerCase();
+  rows.forEach(r => { r.style.display = (!lq || (r.dataset.info||'').includes(lq)) ? '' : 'none'; });
+};
+
+window.filterTable = function(inp, tableId) {
+  const q = inp.value.toLowerCase();
+  const rows = document.querySelectorAll('#'+tableId+' tr:not(:first-child)');
+  rows.forEach(r => { r.style.display = (!q || r.textContent.toLowerCase().includes(q)) ? '' : 'none'; });
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function appendSection(parent, icon, title, count, html, startCollapsed=false) {
+  const sec = document.createElement('div');
+  sec.className = 'section' + (startCollapsed ? ' collapsed' : '');
+  sec.innerHTML = `
+    <div class="section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+      <span class="icon">${icon}</span>
+      <h3>${title}</h3>
+      ${count !== null ? `<span class="badge">${fmt(count)}</span>` : ''}
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">${html}</div>
+  `;
+  parent.appendChild(sec);
+}
+
+function stat(label, value, cls='') {
+  return `<div class="stat-card"><div class="label">${label}</div><div class="value ${cls}">${esc(String(value))}</div></div>`;
+}
+
+function sortedEntries(obj) {
+  return Object.entries(obj).sort((a,b)=>b[1]-a[1]);
+}
+
+function pct(n, total) { return total ? (n/total*100).toFixed(1)+'%' : '0%'; }
+
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
+  if (n < 1073741824) return (n/1048576).toFixed(1) + ' MB';
+  return (n/1073741824).toFixed(2) + ' GB';
+}
+
+function miniBar(val, max) {
+  const w = Math.max(2, Math.round(val/max*100));
+  return `<div class="minibar-bg"><div class="minibar-fill" style="width:${w}%"></div></div>`;
+}
+
+function protoTag(p) {
+  const cls = {TCP:'tag-tcp',UDP:'tag-udp',ICMP:'tag-icmp',ARP:'tag-arp',DNS:'tag-dns',HTTP:'tag-http',TLS:'tag-tls'};
+  return `<span class="tag ${cls[p]||'tag-other'}">${p}</span>`;
+}
+
+function classifyIP(ip) {
+  if (/^10\./.test(ip)) return 'RFC1918 Private';
+  if (/^192\.168\./.test(ip)) return 'RFC1918 Private';
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return 'RFC1918 Private';
+  if (/^127\./.test(ip)) return 'Loopback';
+  if (/^169\.254\./.test(ip)) return 'APIPA/Link-local';
+  if (/^224\./.test(ip) || /^239\./.test(ip)) return 'Multicast';
+  if (/^255\.255\.255\.255/.test(ip)) return 'Broadcast';
+  if (ip.includes(':')) return 'IPv6';
+  return 'Public';
+}
+
+function ttlOS(ttl) {
+  if (ttl <= 64 && ttl > 32) return 'Linux / macOS / iOS';
+  if (ttl <= 128 && ttl > 64) return 'Windows';
+  if (ttl <= 255 && ttl > 128) return 'Cisco / Network device';
+  if (ttl <= 32) return 'Old UNIX / embedded';
+  return '—';
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function detectService(dport, sport, proto) {
+  const services = {20:'FTP-DATA',21:'FTP',22:'SSH',23:'TELNET',25:'SMTP',53:'DNS',67:'DHCP',68:'DHCP',
+    69:'TFTP',80:'HTTP',110:'POP3',119:'NNTP',123:'NTP',137:'NetBIOS-NS',138:'NetBIOS-DGM',
+    139:'NetBIOS-SSN',143:'IMAP',161:'SNMP',162:'SNMP-TRAP',179:'BGP',389:'LDAP',443:'HTTPS/TLS',
+    445:'SMB',465:'SMTPS',500:'IKE',514:'Syslog',515:'LPD',587:'SMTP',631:'IPP',636:'LDAPS',
+    853:'DNS-over-TLS',993:'IMAPS',995:'POP3S',1194:'OpenVPN',1433:'MSSQL',1723:'PPTP',
+    1900:'SSDP',2049:'NFS',3306:'MySQL',3389:'RDP',5353:'mDNS',5355:'LLMNR',5432:'PostgreSQL',
+    5900:'VNC',6379:'Redis',6881:'BitTorrent',8080:'HTTP-ALT',8443:'HTTPS-ALT',9200:'Elasticsearch',
+    27017:'MongoDB'};
+  return services[dport] || services[sport] || null;
+}
+</script>
+</body>
+</html>
